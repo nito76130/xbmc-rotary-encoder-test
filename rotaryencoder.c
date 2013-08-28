@@ -34,7 +34,7 @@ void updateEncoders()
     }
 }
 
-struct encoder *setupencoder(int pin_a, int pin_b)
+struct encoder *setupencoder(int pin_a, int pin_b, int buttonPin)
 {
     if (numberofencoders > max_encoders)
     {
@@ -50,6 +50,7 @@ struct encoder *setupencoder(int pin_a, int pin_b)
 
     pinMode(pin_a, INPUT);
     pinMode(pin_b, INPUT);
+    pinMode(buttonPin, INPUT);
     pullUpDnControl(pin_a, PUD_UP);
     pullUpDnControl(pin_b, PUD_UP);
     wiringPiISR(pin_a,INT_EDGE_BOTH, updateEncoders);
@@ -64,12 +65,14 @@ CURL *curl;
 CURLcode res;
 wiringPiSetup () ;
 /*using pins 23/24*/
-struct encoder *encoder = setupencoder(4,5);
+struct encoder *encoder = setupencoder(4,5,6);
+int buttonState;
 long value;
 char buffer[250];
 while (1)
  {
  updateEncoders();
+ buttonState = digitalRead(6);
  long l = encoder->value;
  if(l!=value)
  {
@@ -87,8 +90,17 @@ while (1)
      /* always cleanup */
      curl_easy_cleanup(curl);
      value = l;
-  }
+ }
+ if(buttonState==1)
+ {
+     curl=curl_easy_init();
+     sprintf(buffer, "http://127.0.0.1/jsonrpc?request={\"jsonrpc\":\"2.0\",\"method\":\"Player.PlayPause\",\"params\":{\"playerid\":0},\"id\":1}");
+     curl_easy_setopt(curl, CURLOPT_URL, buffer);
+    /* Perform the request, res will get the return code */
+     res = curl_easy_perform(curl);
+     printf("Button pushed!\n");
+     delay(1);
+ }
  }
 return(0);
 }
-
